@@ -1,15 +1,5 @@
-use crate::app::{App, Mode};
-use crossterm::style::Stylize;
-use ratatui::{
-    backend::Backend,
-    prelude::{Alignment, Constraint, CrosstermBackend, Direction, Layout, Terminal},
-    style::Style,
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
-    Frame,
-};
-use unicode_width::UnicodeWidthStr;
+use crate::app::App;
 
-pub fn help_ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
+use ratatui::{backend::Backend, Frame};
 
-}
+pub fn help_ui<B: Backend>(_frame: &mut Frame<B>, _app: &mut App) {}

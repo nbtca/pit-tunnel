@@ -1,13 +1,13 @@
 pub enum Interface {
     Main,
     Login,
-    Help
+    Help,
 }
 pub enum Mode {
     Main,
     Type,
     User,
-    Message
+    Message,
 }
 struct Msg {
     send_user: String,

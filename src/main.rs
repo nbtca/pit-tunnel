@@ -3,14 +3,14 @@ mod help_ui;
 mod key_event;
 mod login_ui;
 mod main_ui;
-use app::{App, Interface, Mode};
+use app::{App, Interface};
 use help_ui::help_ui;
 use key_event::{help_event, login_event, main_event};
 use login_ui::login_ui;
 use main_ui::main_ui;
 
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };

@@ -1,11 +1,11 @@
 use crate::app::{App, Mode};
-use crossterm::style::Stylize;
+
 use ratatui::{
     backend::Backend,
-    prelude::{Alignment, Constraint, CrosstermBackend, Direction, Layout, Terminal},
+    prelude::{Alignment, Constraint, Direction, Layout},
     style::Style,
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 use unicode_width::UnicodeWidthStr;

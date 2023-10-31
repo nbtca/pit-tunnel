@@ -73,9 +73,9 @@ pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
     return Ok(false);
 }
 
-pub fn login_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
+pub fn login_event(_app: &mut App, _key: KeyEvent) -> io::Result<bool> {
     return Ok(false);
 }
-pub fn help_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
+pub fn help_event(_app: &mut App, _key: KeyEvent) -> io::Result<bool> {
     return Ok(false);
 }
