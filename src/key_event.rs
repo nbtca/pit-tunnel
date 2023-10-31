@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::{App, Mode};
 
-pub fn main_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
+pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
     match app.current_mode {
         Mode::Main => match key.code {
             KeyCode::Char('q') => return Ok(true),
@@ -70,5 +70,12 @@ pub fn main_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
             _ => {}
         },
     }
+    return Ok(false);
+}
+
+pub fn login_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
+    return Ok(false);
+}
+pub fn help_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
     return Ok(false);
 }

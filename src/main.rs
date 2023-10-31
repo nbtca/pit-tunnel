@@ -1,9 +1,13 @@
 mod app;
+mod help_ui;
 mod key_event;
-mod ui;
+mod login_ui;
+mod main_ui;
 use app::{App, Interface, Mode};
-use key_event::main_key;
-use ui::ui;
+use help_ui::help_ui;
+use key_event::{help_event, login_event, main_event};
+use login_ui::login_ui;
+use main_ui::main_ui;
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -41,23 +45,25 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-// Event Handling
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     loop {
-        terminal.draw(|f| ui(f, app))?;
+        terminal.draw(|f| match app.current_interface {
+            Interface::Login => login_ui(f, app),
+            Interface::Main => main_ui(f, app),
+            Interface::Help => help_ui(f, app),
+        })?;
 
         if let Event::Key(key) = event::read()? {
             if key.kind == event::KeyEventKind::Release {
                 continue;
             }
-            match app.current_interface {
-                Interface::Login => {},
-                Interface::Main => {
-                    if let Ok(true) = main_key(app, key) {
-                        return Ok(());
-                    }
-                },
-                Interface::Help => {},
+            if let Ok(true) = match app.current_interface {
+                Interface::Login => login_event,
+                Interface::Main => main_event,
+                Interface::Help => help_event,
+            }(app, key)
+            {
+                return Ok(());
             }
         }
     }
