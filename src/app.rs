@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 pub enum Interface {
     Main,
     Login,
@@ -9,21 +11,24 @@ pub enum Mode {
     User,
     Message,
 }
-struct Msg {
-    send_user: String,
-    recv_user: String,
-    send_time: String,
-    msg: String,
-    is_public: bool,
-    is_info: bool,
+
+#[derive(Serialize, Deserialize)]
+pub struct Msg {
+    pub send_user: String,
+    pub recv_user: String,
+    pub send_time: String,
+    pub msg: String,
+    pub is_public: bool,
+    pub is_info: bool,
 }
 
 pub struct App {
     pub input: String,
-    pub messages: Vec<String>,
+    pub messages: Vec<Msg>,
     pub current_mode: Mode,
     pub current_interface: Interface,
     pub scroll: usize,
+
 }
 impl App {
     pub fn new() -> App {

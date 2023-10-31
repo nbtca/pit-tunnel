@@ -63,7 +63,7 @@ pub fn main_ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
             Line::from(vec![
                 Span::styled(date, Style::default().fg(ratatui::style::Color::Yellow)),
                 Span::styled("user1 ",Style::default().fg(ratatui::style::Color::Green)),
-                Span::from(message),
+                Span::from(message.msg.clone()),
             ])
         })
         .collect::<Vec<_>>();

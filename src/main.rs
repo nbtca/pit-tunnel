@@ -3,7 +3,7 @@ mod help_ui;
 mod key_event;
 mod login_ui;
 mod main_ui;
-use app::{App, Interface};
+use app::{App, Interface, Msg};
 use help_ui::help_ui;
 use key_event::{help_event, login_event, main_event};
 use login_ui::login_ui;
@@ -18,6 +18,8 @@ use ratatui::{
     backend::Backend,
     prelude::{CrosstermBackend, Terminal},
 };
+use tungstenite::connect;
+use url::Url;
 use std::io::{self, Result};
 
 fn main() -> Result<()> {
@@ -46,6 +48,16 @@ fn main() -> Result<()> {
 }
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+    let mut socket = connect(Url::parse("ws://127.0.0.1:8080/ws?data={\"Name\":\"b\"}").unwrap())
+        .expect("Can't connect")
+        .0;
+
+    let ws = ||{
+        let data = socket.read().expect("Error reading message");
+        let msg: Msg = serde_json::from_str(&data.to_string()).unwrap();
+        app.messages.push(msg);
+    };
+
     loop {
         terminal.draw(|f| match app.current_interface {
             Interface::Login => login_ui(f, app),

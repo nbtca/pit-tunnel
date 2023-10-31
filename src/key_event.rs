@@ -2,7 +2,7 @@ use std::io;
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::{App, Mode};
+use crate::app::{App, Mode, Msg};
 
 pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
     match app.current_mode {
@@ -30,7 +30,15 @@ pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
                 app.input.pop();
             }
             KeyCode::Enter => {
-                app.messages.push(app.input.clone());
+                let msg: Msg = Msg {
+                    send_user: String::from("b"),
+                    send_time: String::from("2020-12-12"),
+                    recv_user: String::from("a"),
+                    msg: app.input.clone(),
+                    is_public: true,
+                    is_info: false,
+                };
+                app.messages.push(msg);
                 app.input.clear();
             }
             _ => {}
