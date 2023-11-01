@@ -30,16 +30,7 @@ pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
                 app.input.pop();
             }
             KeyCode::Enter => {
-                let msg: Msg = Msg {
-                    send_user: String::from("b"),
-                    send_time: String::from("2020-12-12"),
-                    recv_user: String::from("a"),
-                    msg: app.input.clone(),
-                    is_public: true,
-                    is_info: false,
-                };
-                app.messages.push(msg);
-                app.input.clear();
+                send_message(app);
             }
             _ => {}
         },
@@ -79,6 +70,19 @@ pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
         },
     }
     return Ok(false);
+}
+
+fn send_message(app: &mut App) {
+    let msg: Msg = Msg {
+        send_user: String::from("b"),
+        send_time: String::from("2020-12-12"),
+        recv_user: String::from("a"),
+        msg: app.input.clone(),
+        is_public: true,
+        is_info: false,
+    };
+    app.messages.push(msg);
+    app.input.clear();
 }
 
 pub fn login_event(_app: &mut App, _key: KeyEvent) -> io::Result<bool> {

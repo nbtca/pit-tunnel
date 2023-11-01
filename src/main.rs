@@ -18,9 +18,13 @@ use ratatui::{
     backend::Backend,
     prelude::{CrosstermBackend, Terminal},
 };
+use std::{
+    io::{self, Result},
+    sync::mpsc,
+    thread,
+};
 use tungstenite::connect;
 use url::Url;
-use std::io::{self, Result};
 
 fn main() -> Result<()> {
     enable_raw_mode()?;
@@ -48,22 +52,35 @@ fn main() -> Result<()> {
 }
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
-    let mut socket = connect(Url::parse("ws://127.0.0.1:8080/ws?data={\"Name\":\"b\"}").unwrap())
-        .expect("Can't connect")
-        .0;
+    let (sender, receiver) = mpsc::channel();
 
-    let ws = ||{
-        let data = socket.read().expect("Error reading message");
-        let msg: Msg = serde_json::from_str(&data.to_string()).unwrap();
-        app.messages.push(msg);
-    };
+    thread::spawn(move || {
+        let mut socket: tungstenite::WebSocket<
+            tungstenite::stream::MaybeTlsStream<std::net::TcpStream>,
+        > = connect(Url::parse("ws://127.0.0.1:8080/ws?data={\"Name\":\"b\"}").unwrap())
+            .expect("Can't connect")
+            .0;
+
+        loop {
+            let data = socket.read().expect("Error reading message");
+            let msg: Msg = serde_json::from_str(&data.to_string()).unwrap();
+            sender.send(msg).expect("Error sending message");
+        }
+    });
 
     loop {
-        terminal.draw(|f| match app.current_interface {
-            Interface::Login => login_ui(f, app),
-            Interface::Main => main_ui(f, app),
-            Interface::Help => help_ui(f, app),
-        })?;
+        terminal
+            .draw(|f| match app.current_interface {
+                Interface::Login => login_ui(f, app),
+                Interface::Main => main_ui(f, app),
+                Interface::Help => help_ui(f, app),
+            })
+            .unwrap();
+
+        if let Ok(msg) = receiver.try_recv() {
+            app.messages.push(msg);
+            continue;
+        }
 
         if let Event::Key(key) = event::read()? {
             if key.kind == event::KeyEventKind::Release {

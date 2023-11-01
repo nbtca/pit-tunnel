@@ -28,7 +28,6 @@ pub struct App {
     pub current_mode: Mode,
     pub current_interface: Interface,
     pub scroll: usize,
-
 }
 impl App {
     pub fn new() -> App {
