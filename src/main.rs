@@ -54,12 +54,28 @@ fn main() -> Result<()> {
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     let (sender, receiver) = mpsc::channel();
 
+    loop {
+        terminal.draw(|f| login_ui(f, app)).unwrap();
+        if let Event::Key(key) = event::read()? {
+            if key.kind == event::KeyEventKind::Release {
+                continue;
+            }
+            match login_event(app, key).unwrap() {
+                1 => break,
+                2 => return Ok(()),
+                _ => {}
+            }
+        }
+    }
+    let username = app.username.clone();
     thread::spawn(move || {
         let mut socket: tungstenite::WebSocket<
             tungstenite::stream::MaybeTlsStream<std::net::TcpStream>,
-        > = connect(Url::parse("ws://127.0.0.1:8080/ws?data={\"Name\":\"b\"}").unwrap())
-            .expect("Can't connect")
-            .0;
+        > = connect(
+            Url::parse(("ws://127.0.0.1:8080/ws?data={\"Name\":\"".to_owned() + &username + "\"}").as_str()).unwrap(),
+        )
+        .expect("Can't connect")
+        .0;
 
         loop {
             let data = socket.read().expect("Error reading message");
@@ -87,9 +103,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 continue;
             }
             if let Ok(true) = match app.current_interface {
-                Interface::Login => login_event,
                 Interface::Main => main_event,
                 Interface::Help => help_event,
+                _ => main_event,
             }(app, key)
             {
                 return Ok(());

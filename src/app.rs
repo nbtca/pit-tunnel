@@ -24,6 +24,7 @@ pub struct Msg {
 
 pub struct App {
     pub input: String,
+    pub username: String,
     pub messages: Vec<Msg>,
     pub current_mode: Mode,
     pub current_interface: Interface,
@@ -33,9 +34,10 @@ impl App {
     pub fn new() -> App {
         App {
             input: String::from("hello"),
+            username: String::from("Solsist"),
             messages: Vec::new(),
             current_mode: Mode::Main,
-            current_interface: Interface::Main,
+            current_interface: Interface::Login,
             scroll: 0,
         }
     }

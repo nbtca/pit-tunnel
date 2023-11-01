@@ -59,10 +59,9 @@ pub fn main_ui<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
         .messages
         .iter()
         .map(|message| {
-            let date = "2023-10-31 ".to_string();
             Line::from(vec![
-                Span::styled(date, Style::default().fg(ratatui::style::Color::Yellow)),
-                Span::styled("user1 ",Style::default().fg(ratatui::style::Color::Green)),
+                Span::styled(message.send_time.clone()+" ", Style::default().fg(ratatui::style::Color::Yellow)),
+                Span::styled(message.send_user.clone()+" ",Style::default().fg(ratatui::style::Color::Green)),
                 Span::from(message.msg.clone()),
             ])
         })

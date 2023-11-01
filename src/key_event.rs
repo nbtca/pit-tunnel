@@ -1,8 +1,9 @@
 use std::io;
 
 use crossterm::event::{KeyCode, KeyEvent};
+use chrono::prelude::*;
 
-use crate::app::{App, Mode, Msg};
+use crate::app::{App, Interface, Mode, Msg};
 
 pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
     match app.current_mode {
@@ -10,6 +11,9 @@ pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
             KeyCode::Char('q') => return Ok(true),
             KeyCode::Char('i') => {
                 app.current_mode = Mode::Type;
+            }
+            KeyCode::Char('h') => {
+                app.current_interface = Interface::Help;
             }
             KeyCode::Char('u') => {
                 app.current_mode = Mode::User;
@@ -20,6 +24,9 @@ pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
             _ => {}
         },
         Mode::Type => match key.code {
+            KeyCode::Char('h') => {
+                app.current_interface = Interface::Help;
+            }
             KeyCode::Esc => {
                 app.current_mode = Mode::Main;
             }
@@ -35,6 +42,9 @@ pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
             _ => {}
         },
         Mode::User => match key.code {
+            KeyCode::Char('h') => {
+                app.current_interface = Interface::Help;
+            }
             KeyCode::Char('i') => {
                 app.current_mode = Mode::Type;
             }
@@ -74,8 +84,8 @@ pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
 
 fn send_message(app: &mut App) {
     let msg: Msg = Msg {
-        send_user: String::from("b"),
-        send_time: String::from("2020-12-12"),
+        send_user: app.username.clone(),
+        send_time: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
         recv_user: String::from("a"),
         msg: app.input.clone(),
         is_public: true,
@@ -85,9 +95,34 @@ fn send_message(app: &mut App) {
     app.input.clear();
 }
 
-pub fn login_event(_app: &mut App, _key: KeyEvent) -> io::Result<bool> {
-    return Ok(false);
+pub fn login_event(app: &mut App, key: KeyEvent) -> io::Result<i8> {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') => {
+            return Ok(2);
+        }
+        KeyCode::Char('h') => {
+            app.current_interface = Interface::Help;
+        }
+        KeyCode::Char(c) => {
+            app.username.push(c);
+        }
+        KeyCode::Backspace => {
+            app.username.pop();
+        }
+        KeyCode::Enter => {
+            app.current_interface = Interface::Main;
+            return Ok(1);
+        }
+        _ => {}
+    }
+    return Ok(0);
 }
-pub fn help_event(_app: &mut App, _key: KeyEvent) -> io::Result<bool> {
+pub fn help_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') => {
+            app.current_interface = Interface::Main;
+        }
+        _ => {}
+    }
     return Ok(false);
 }
