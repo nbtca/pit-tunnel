@@ -51,19 +51,20 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> () {
-    let (sc, rc) = mpsc::channel();
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+    let (sender, receiver) = mpsc::channel();
+    // let (sc, rc) = mpsc::channel();
+    let username = app.username.clone();
     thread::spawn(move || async {
-        let username = app.username.clone();
+        let username: String = username;
         let mut ws = WebSocket::connect(
             ("ws://127.0.0.1:8080/ws?data={\"Name\":\"".to_owned() + &username + "\"}").as_str(),
         )
         .await
         .unwrap();
         let (mut r, mut w) = ws.split();
-        // let send_str = "你想提交的内容";
-        // w.send_text(send_str.to_string()).await.unwrap();
-
+        // // let send_str = "你想提交的内容";
+        // // w.send_text(send_str.to_string()).await.unwrap();
         // 定期推送ping，如果想改这里自己建立信息通讯mpsc::channel(0) 发送不同的数据;
         thread::spawn(move || {
             loop {
@@ -85,8 +86,6 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> () {
             let (ss, b, snake_case) = s.as_text().unwrap();
         }
     });
-    // let (sender, receiver) = mpsc::channel();
-
     // loop {
     //     terminal.draw(|f| login_ui(f, app)).unwrap();
     //     if let Event::Key(key) = event::read()? {
@@ -117,32 +116,30 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> () {
     //     }
     // });
 
-    // loop {
-    //     terminal
-    //         .draw(|f| match app.current_interface {
-    //             Interface::Login => login_ui(f, app),
-    //             Interface::Main => main_ui(f, app),
-    //             Interface::Help => help_ui(f, app),
-    //         })
-    //         .unwrap();
-
-    //     if let Ok(msg) = receiver.try_recv() {
-    //         app.messages.push(msg);
-    //         continue;
-    //     }
-
-    //     if let Event::Key(key) = event::read()? {
-    //         if key.kind == event::KeyEventKind::Release {
-    //             continue;
-    //         }
-    //         if let Ok(true) = match app.current_interface {
-    //             Interface::Main => main_event,
-    //             Interface::Help => help_event,
-    //             _ => main_event,
-    //         }(app, key)
-    //         {
-    //             return Ok(());
-    //         }
-    //     }
-    // }
+    loop {
+        terminal
+            .draw(|f| match app.current_interface {
+                Interface::Login => login_ui(f, app),
+                Interface::Main => main_ui(f, app),
+                Interface::Help => help_ui(f, app),
+            })
+            .unwrap();
+        if let Ok(msg) = receiver.try_recv() {
+            app.messages.push(msg);
+            continue;
+        }
+        if let Event::Key(key) = event::read()? {
+            if key.kind == event::KeyEventKind::Release {
+                continue;
+            }
+            if let Ok(true) = match app.current_interface {
+                Interface::Main => main_event,
+                Interface::Help => help_event,
+                _ => main_event,
+            }(app, key)
+            {
+                return Ok(());
+            }
+        }
+    }
 }
