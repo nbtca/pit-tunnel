@@ -9,6 +9,7 @@ use key_event::{help_event, login_event, main_event};
 use login_ui::login_ui;
 use main_ui::main_ui;
 
+use async_std::task;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event},
     execute,
@@ -27,10 +28,11 @@ use std::{
     },
     thread,
 };
-use tungstenite::connect;
 use url::Url;
+use websockets::WebSocket;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -40,7 +42,7 @@ fn main() -> Result<()> {
     let (sender, _) = mpsc::channel();
 
     let mut app = App::new(sender);
-    let res = run_app(&mut terminal, &mut app);
+    let res = run_app(&mut terminal, &mut app).await;
 
     disable_raw_mode()?;
     execute!(
@@ -57,7 +59,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     let (sender, receiver) = mpsc::channel();
     app.sender = sender.clone();
 
@@ -74,37 +76,54 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
             }
         }
     }
-
-    let socket = Arc::new(Mutex::new(
-        connect(
-            Url::parse(
-                ("ws://127.0.0.1:8080/ws?data={\"Name\":\"".to_owned() + &app.username + "\"}")
-                    .as_str(),
-            )
-            .unwrap(),
-        )
-        .expect("Can't connect")
-        .0,
-    ));
-
-    let socket_read = socket.clone();
-    let socket_send = socket.clone();
+    let url = Url::parse(
+        ("ws://127.0.0.1:8080/ws?data={\"Name\":\"".to_owned() + &app.username + "\"}").as_str(),
+    )
+    .clone()
+    .unwrap();
+    let mut ws = WebSocket::connect(url.as_str()).await.unwrap();
+    let (mut read, mut write) = ws.split();
+    let read = Arc::new(Mutex::new(read));
+    // let socket = Arc::new(Mutex::new({
+    //     // let (client, _) = tungstenite::client::client(url.clone(), tcp_stream).unwrap();
+    //     // let (mut ws_stream, _) = connect(url.clone()).expect("Can't connect");
+    //     // let client = match ws_stream.get_mut() {
+    //     //     tt::Plain(tcp_stream) => {
+    //     //         let (client, _) = tungstenite::client::client(url.clone(), tcp_stream).unwrap();
+    //     //         client.read
+    //     //         Option::Some(client.unwrap())
+    //     //         //https://github.com/snapview/tungstenite-rs/issues/11
+    //     //     }
+    //     //     _ => Option::None,
+    //     // };
+    //     // let a = client.unwrap().0;
+    //     // ws_stream
+    // }));
+    // let socket_read = socket.clone();
+    // let socket_send = socket.clone();
 
     let sender_msg = sender.clone();
     let sender_key = sender.clone();
 
     // 接收消息并通过Channel发送
-    thread::spawn(move || loop {
-        let data = socket_read
-            .clone()
-            .lock()
-            .unwrap()
-            .read()
-            .expect("Error reading message");
-        let msg: Msg = serde_json::from_str(&data.to_string()).unwrap();
-        sender_msg
-            .send(NodeEvent::MsgRecv(msg))
-            .expect("Error sending message");
+    //https://github.com/sdroege/async-tungstenite
+    //https://github.com/snapview/tokio-tungstenite
+    thread::spawn(move || async {
+        loop {
+            // let data = socket_read
+            //     .clone()
+            //     .lock()
+            //     .unwrap()
+            //     .read()
+            //     .expect("Error reading message");
+            let read = read.clone().lock().unwrap();
+            let received = read.receive();
+            let (data, _, _) = received.await.unwrap().as_text().unwrap();
+            let msg: Msg = serde_json::from_str(&data).unwrap();
+            sender_msg
+                .send(NodeEvent::MsgRecv(msg))
+                .expect("Error sending message");
+        }
     });
 
     // 接收按键事件并通过Channel发送
@@ -145,12 +164,17 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     }
                 }
                 NodeEvent::MsgSend(msg) => {
-                    let mut socket = socket_send.lock().unwrap();
-                    socket
-                        .send(tungstenite::Message::Text(
-                            serde_json::to_string(&msg).unwrap(),
-                        ))
+                    write
+                        .send_text(serde_json::to_string(&msg).unwrap())
+                        .await
                         .expect("Error sending message");
+                    // sender.send(NodeEvent::MsgSend(msg)).unwrap();
+                    // let mut socket = read
+                    //     .socket
+                    //     .send(tungstenite::Message::Text(
+                    //         serde_json::to_string(&msg).unwrap(),
+                    //     ))
+                    //     .expect("Error sending message");
                 }
             }
         }
