@@ -3,7 +3,7 @@ mod help_ui;
 mod key_event;
 mod login_ui;
 mod main_ui;
-use app::{App, Interface, Msg};
+use app::{App, Interface, Msg, NodeEvent};
 use help_ui::help_ui;
 use key_event::{help_event, login_event, main_event};
 use login_ui::login_ui;
@@ -20,7 +20,11 @@ use ratatui::{
 };
 use std::{
     io::{self, Result},
-    sync::mpsc,
+    net::SocketAddr,
+    sync::{
+        mpsc::{self, Sender},
+        Arc, Mutex,
+    },
     thread,
 };
 use tungstenite::connect;
@@ -33,7 +37,9 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new();
+    let (sender, _) = mpsc::channel();
+
+    let mut app = App::new(sender);
     let res = run_app(&mut terminal, &mut app);
 
     disable_raw_mode()?;
@@ -53,6 +59,7 @@ fn main() -> Result<()> {
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     let (sender, receiver) = mpsc::channel();
+    app.sender = sender.clone();
 
     loop {
         terminal.draw(|f| login_ui(f, app)).unwrap();
@@ -67,20 +74,45 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
             }
         }
     }
-    let username = app.username.clone();
-    thread::spawn(move || {
-        let mut socket: tungstenite::WebSocket<
-            tungstenite::stream::MaybeTlsStream<std::net::TcpStream>,
-        > = connect(
-            Url::parse(("ws://127.0.0.1:8080/ws?data={\"Name\":\"".to_owned() + &username + "\"}").as_str()).unwrap(),
+
+    let socket = Arc::new(Mutex::new(
+        connect(
+            Url::parse(
+                ("ws://127.0.0.1:8080/ws?data={\"Name\":\"".to_owned() + &app.username + "\"}")
+                    .as_str(),
+            )
+            .unwrap(),
         )
         .expect("Can't connect")
-        .0;
+        .0,
+    ));
 
-        loop {
-            let data = socket.read().expect("Error reading message");
-            let msg: Msg = serde_json::from_str(&data.to_string()).unwrap();
-            sender.send(msg).expect("Error sending message");
+    let socket_read = socket.clone();
+    let socket_send = socket.clone();
+
+    let sender_msg = sender.clone();
+    let sender_key = sender.clone();
+
+    // 接收消息并通过Channel发送
+    thread::spawn(move || loop {
+        let data = socket_read
+            .clone()
+            .lock()
+            .unwrap()
+            .read()
+            .expect("Error reading message");
+        let msg: Msg = serde_json::from_str(&data.to_string()).unwrap();
+        sender_msg
+            .send(NodeEvent::MsgRecv(msg))
+            .expect("Error sending message");
+    });
+
+    // 接收按键事件并通过Channel发送
+    thread::spawn(move || loop {
+        if let Event::Key(key) = event::read().expect("Error reading key") {
+            sender_key
+                .send(NodeEvent::Key(key))
+                .expect("Error sending message");
         }
     });
 
@@ -93,22 +125,33 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
             })
             .unwrap();
 
-        if let Ok(msg) = receiver.try_recv() {
-            app.messages.push(msg);
-            continue;
-        }
+        if let Ok(event) = receiver.try_recv() {
+            match event {
+                NodeEvent::MsgRecv(msg) => {
+                    app.messages.push(msg);
+                }
+                NodeEvent::Key(key) => {
+                    if key.kind == event::KeyEventKind::Release {
+                        continue;
+                    }
 
-        if let Event::Key(key) = event::read()? {
-            if key.kind == event::KeyEventKind::Release {
-                continue;
-            }
-            if let Ok(true) = match app.current_interface {
-                Interface::Main => main_event,
-                Interface::Help => help_event,
-                _ => main_event,
-            }(app, key)
-            {
-                return Ok(());
+                    if let Ok(true) = match app.current_interface {
+                        Interface::Main => main_event,
+                        Interface::Help => help_event,
+                        _ => main_event,
+                    }(app, key)
+                    {
+                        return Ok(());
+                    }
+                }
+                NodeEvent::MsgSend(msg) => {
+                    let mut socket = socket_send.lock().unwrap();
+                    socket
+                        .send(tungstenite::Message::Text(
+                            serde_json::to_string(&msg).unwrap(),
+                        ))
+                        .expect("Error sending message");
+                }
             }
         }
     }

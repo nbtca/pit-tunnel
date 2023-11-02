@@ -3,7 +3,7 @@ use std::io;
 use crossterm::event::{KeyCode, KeyEvent};
 use chrono::prelude::*;
 
-use crate::app::{App, Interface, Mode, Msg};
+use crate::app::{App, Interface, Mode, Msg, NodeEvent};
 
 pub fn main_event(app: &mut App, key: KeyEvent) -> io::Result<bool> {
     match app.current_mode {
@@ -91,6 +91,7 @@ fn send_message(app: &mut App) {
         is_public: true,
         is_info: false,
     };
+    app.sender.send(NodeEvent::MsgSend(msg.clone())).expect("Error sending message");
     app.messages.push(msg);
     app.input.clear();
 }
