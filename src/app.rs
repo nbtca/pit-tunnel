@@ -1,12 +1,7 @@
-use std::{
-    net::TcpStream,
-    sync::{mpsc::Sender, Arc, Mutex},
-};
+use std::sync::mpsc::Sender;
 
 use crossterm::event::KeyEvent;
 use serde::{Deserialize, Serialize};
-use tungstenite::{connect, stream::MaybeTlsStream, WebSocket};
-use url::Url;
 
 pub enum Interface {
     Main,
